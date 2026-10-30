@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TapOut</string>
+    <string name="accessibility_service_description">Servizio di protezione TapOut: impedisce l\'apertura delle applicazioni bloccate durante le fasce orarie e mentre la sveglia sta suonando, richiedendo il Tag NFC o la Dance Mission per lo sblocco.</string>
+    <string name="alarm_channel_name">TapOut Sveglia Inarrestabile</string>
+    <string name="alarm_channel_desc">Notifiche e allarmi critici a tutto schermo</string>
+    <string name="blocker_channel_name">TapOut App Blocker</string>
+    <string name="blocker_channel_desc">Notifiche relative allo stato del blocco applicazioni</string>
+    <string name="alarm_ringing_title">TapOut Sveglia Attiva!</string>
+    <string name="alarm_ringing_text">Avvicina il Tag NFC o completa la Dance Mission</string>
+</resources>

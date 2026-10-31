@@ -74,7 +74,9 @@ Al primo avvio, TapOut ti guiderà attraverso un **Wizard di Autorizzazione**:
 - Anche la vibrazione d'emergenza include attributi d'allarme dedicati che superano le restrizioni di silenzioso o vibrazione disattivata.
 - Se hai concesso l'autorizzazione di sistema **Accesso a Non Disturbare** (`ACCESS_NOTIFICATION_POLICY`), TapOut garantisce programmaticamente che la sveglia suoni sempre a volume massimo.
 
-### 🔒 Spegnimento ad App Completamente Chiusa
+### 🔒 Spegnimento ad App Chiusa & Persistenza sulla Dashboard
 - Se chiudi TapOut dalle app recenti (swipe-up o arresto forzato), `AlarmManager.setAlarmClock()` risveglia il processore al millisecondo previsto.
 - Il Broadcast Receiver di TapOut dispone del privilegio ufficiale di sistema per lanciare immediatamente la schermata a tutto schermo `AlarmActivity`, attivando il modulo di lettura NFC istantaneo per consentirti di spegnere la sveglia col tuo tag.
 - Al riconoscimento del tag, il suono si arresta subito e compare la schermata di conferma, assorbendo le letture successive per evitare l'apertura della schermata nativa *"New tag collected"* del telefono.
+- **Rimani sempre nell'app:** Appena disattivi la sveglia, TapOut non si chiude nel nulla: **ti porta direttamente sulla Dashboard principale e rimane aperta sullo schermo**, pronta per consultare le tue attività o gestire il blocco app.
+- **Supporto Sveglie Consecutive:** Se imposti sveglie multiple a distanza di pochi minuti, ciascun allarme successivo ripristina all'istante lo stato di scansione e accetta regolarmente il tag NFC senza alcun blocco.

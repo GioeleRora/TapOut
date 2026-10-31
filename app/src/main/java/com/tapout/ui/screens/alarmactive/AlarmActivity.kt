@@ -21,6 +21,7 @@ import com.tapout.TapOutApplication
 import com.tapout.alarm.AlarmScheduler
 import com.tapout.nfc.NfcHelper
 import com.tapout.service.AlarmService
+import com.tapout.ui.MainActivity
 import com.tapout.ui.screens.dance.DanceMissionScreen
 import com.tapout.ui.screens.face.SmileKissMissionScreen
 import com.tapout.ui.theme.TapOutTheme
@@ -47,29 +48,21 @@ class AlarmActivity : ComponentActivity() {
     private var scanFeedbackMessage by mutableStateOf<String?>(null)
     private var isScanError by mutableStateOf(false)
 
+    // Parametri dinamici della sveglia corrente
+    private var alarmLabel by mutableStateOf("Sveglia TapOut")
+    private var requireNfc by mutableStateOf(true)
+    private var requireDance by mutableStateOf(true)
+    private var requireSmileKiss by mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         setupLockscreenFlags()
         hideSystemBars()
-
-        try {
-            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-            wakeLock = powerManager.newWakeLock(
-                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
-                        PowerManager.ACQUIRE_CAUSES_WAKEUP or
-                        PowerManager.ON_AFTER_RELEASE,
-                "TapOut:AlarmActivityWakeLock"
-            )
-            wakeLock?.acquire(10 * 60 * 1000L) // 10 minuti di guardia
-        } catch (_: Exception) {}
+        acquireWakeLock()
 
         nfcHelper = NfcHelper(this)
-
-        val alarmLabel = intent.getStringExtra(AlarmScheduler.EXTRA_ALARM_LABEL) ?: "Sveglia TapOut"
-        val requireNfc = intent.getBooleanExtra(AlarmScheduler.EXTRA_REQUIRE_NFC, true)
-        val requireDance = intent.getBooleanExtra(AlarmScheduler.EXTRA_REQUIRE_DANCE, true)
-        val requireSmileKiss = intent.getBooleanExtra(AlarmScheduler.EXTRA_REQUIRE_SMILE_KISS, false)
+        extractAlarmParameters(intent)
 
         lifecycleScope.launch {
             TapOutApplication.settingsRepository.allNfcTags.collect { tags ->
@@ -87,7 +80,7 @@ class AlarmActivity : ComponentActivity() {
         setContent {
             TapOutTheme {
                 BackHandler(enabled = true) {
-                    // Tasto Indietro categoricamente disabilitato
+                    // Tasto Indietro categoricamente disabilitato durante l'allarme
                 }
 
                 when (currentState) {
@@ -136,9 +129,9 @@ class AlarmActivity : ComponentActivity() {
                                 currentState = AlarmRingState.DISMISSED
                                 window.decorView.postDelayed({
                                     if (!isFinishing && !isDestroyed) {
-                                        finishAndRemoveTask()
+                                        closeAlarmAndOpenDashboard()
                                     }
-                                }, 2000)
+                                }, 1500)
                             },
                             onCancel = {
                                 val unduckIntent = Intent(this@AlarmActivity, AlarmService::class.java).apply {
@@ -160,9 +153,9 @@ class AlarmActivity : ComponentActivity() {
                                 currentState = AlarmRingState.DISMISSED
                                 window.decorView.postDelayed({
                                     if (!isFinishing && !isDestroyed) {
-                                        finishAndRemoveTask()
+                                        closeAlarmAndOpenDashboard()
                                     }
-                                }, 2000)
+                                }, 1500)
                             },
                             onCancel = {
                                 val unduckIntent = Intent(this@AlarmActivity, AlarmService::class.java).apply {
@@ -177,7 +170,7 @@ class AlarmActivity : ComponentActivity() {
                     AlarmRingState.DISMISSED -> {
                         AlarmDismissedScreen(
                             onClose = {
-                                finishAndRemoveTask()
+                                closeAlarmAndOpenDashboard()
                             }
                         )
                     }
@@ -186,10 +179,31 @@ class AlarmActivity : ComponentActivity() {
         }
     }
 
+    private fun extractAlarmParameters(intent: Intent) {
+        alarmLabel = intent.getStringExtra(AlarmScheduler.EXTRA_ALARM_LABEL) ?: "Sveglia TapOut"
+        requireNfc = intent.getBooleanExtra(AlarmScheduler.EXTRA_REQUIRE_NFC, true)
+        requireDance = intent.getBooleanExtra(AlarmScheduler.EXTRA_REQUIRE_DANCE, true)
+        requireSmileKiss = intent.getBooleanExtra(AlarmScheduler.EXTRA_REQUIRE_SMILE_KISS, false)
+    }
+
+    private fun acquireWakeLock() {
+        try {
+            if (wakeLock?.isHeld != true) {
+                val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+                wakeLock = powerManager.newWakeLock(
+                    PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
+                            PowerManager.ACQUIRE_CAUSES_WAKEUP or
+                            PowerManager.ON_AFTER_RELEASE,
+                    "TapOut:AlarmActivityWakeLock"
+                )
+                wakeLock?.acquire(10 * 60 * 1000L) // 10 minuti di guardia
+            }
+        } catch (_: Exception) {}
+    }
+
     override fun onResume() {
         super.onResume()
         hideSystemBars()
-        val requireNfc = intent.getBooleanExtra(AlarmScheduler.EXTRA_REQUIRE_NFC, true)
         if (requireNfc && nfcHelper.isNfcSupported) {
             if (!nfcHelper.isNfcEnabled) {
                 nfcHelper.tryEnableNfcOrOpenPrompt(this)
@@ -217,9 +231,40 @@ class AlarmActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+
+        // Se l'Intent è un nuovo allarme in arrivo (es. sveglie consecutive o ripetute)
+        if (intent.action == "com.tapout.action.ALARM_RING" ||
+            intent.action == AlarmScheduler.ACTION_ALARM_TRIGGER ||
+            intent.hasExtra(AlarmScheduler.EXTRA_ALARM_ID)
+        ) {
+            handleNewAlarmTrigger(intent)
+            return
+        }
+
+        // Se l'Intent è un tag NFC consegnato via Intent di sistema
         val uid = NfcHelper.extractUidFromIntent(intent)
         if (uid != null) {
             processScannedUid(uid)
+        }
+    }
+
+    private fun handleNewAlarmTrigger(intent: Intent) {
+        extractAlarmParameters(intent)
+        scanFeedbackMessage = null
+        isScanError = false
+        currentState = AlarmRingState.RINGING // Ripristina immediatamente lo stato attivo
+
+        setupLockscreenFlags()
+        hideSystemBars()
+        acquireWakeLock()
+
+        if (requireNfc && nfcHelper.isNfcSupported) {
+            if (!nfcHelper.isNfcEnabled) {
+                nfcHelper.tryEnableNfcOrOpenPrompt(this)
+            }
+            nfcHelper.enableReaderMode(this) { scannedUid ->
+                processScannedUid(scannedUid)
+            }
         }
     }
 
@@ -230,13 +275,9 @@ class AlarmActivity : ComponentActivity() {
         }
 
         lifecycleScope.launch {
-            val uids = if (registeredUids.isEmpty()) {
-                withContext(Dispatchers.IO) {
-                    TapOutApplication.settingsRepository.getAllRegisteredUids()
-                }
-            } else {
-                registeredUids
-            }
+            val uids = withContext(Dispatchers.IO) {
+                TapOutApplication.settingsRepository.getAllRegisteredUids()
+            }.ifEmpty { registeredUids }
 
             val isValid = NfcHelper.isTagValid(scannedUid, uids, isTestMode)
 
@@ -247,21 +288,19 @@ class AlarmActivity : ComponentActivity() {
                 scanFeedbackMessage = "✅ Tag Riconosciuto! Sveglia Spenta"
                 currentState = AlarmRingState.DISMISSED
 
-                // Ferma subito suono e vibrazione inarrestabile
+                // Ferma subito il suono e la vibrazione dell'allarme
                 val stopIntent = Intent(this@AlarmActivity, AlarmService::class.java).apply {
                     action = AlarmService.ACTION_STOP_ALARM
                 }
                 startService(stopIntent)
 
-                // IMPORTANTE: NON chiudere l'activity dopo soli 400ms!
-                // Mantenendo l'activity a schermo e il ReaderMode attivo per 2.5 secondi,
-                // assorbiamo le letture ripetute mentre l'utente allontana la mano.
-                // Questo impedisce categoricamente al sistema operativo Android di aprire "TagViewer (Empty tag)"!
+                // ReaderMode rimane attivo per 2 secondi per assorbire letture successive,
+                // poi l'app si apre e rimane aperta direttamente sulla Dashboard
                 window.decorView.postDelayed({
                     if (!isFinishing && !isDestroyed) {
-                        finishAndRemoveTask()
+                        closeAlarmAndOpenDashboard()
                     }
-                }, 2500)
+                }, 2000)
             } else {
                 isScanError = true
                 scanFeedbackMessage = "⚠️ Tag non valido ($scannedUid). Usa uno dei tag registrati!"
@@ -270,6 +309,18 @@ class AlarmActivity : ComponentActivity() {
                 }, 4000)
             }
         }
+    }
+
+    private fun closeAlarmAndOpenDashboard() {
+        try {
+            val mainIntent = Intent(this@AlarmActivity, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+            startActivity(mainIntent)
+        } catch (_: Exception) {}
+        finish()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -324,6 +375,6 @@ class AlarmActivity : ComponentActivity() {
             action = AlarmService.ACTION_STOP_ALARM
         }
         startService(stopIntent)
-        finishAndRemoveTask()
+        closeAlarmAndOpenDashboard()
     }
 }

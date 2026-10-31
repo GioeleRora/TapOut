@@ -167,22 +167,17 @@ Stato: `[ ]` Non Iniziato | `[~]` In Lavorazione | `[x]` Completato
 
 ---
 
-## Modulo 19: Risoluzione Crash Avvio Sveglia & Selezione Brani Musicali Personalizzati
-- [x] Risoluzione crash fatale all'attivazione dell'allarme:
-  * Rimosso `activityOptionsBundle` da `PendingIntent.getActivity()` in `AlarmService.kt` (risolto `IllegalArgumentException: pendingIntentBackgroundActivityStartMode must not be set when creating a PendingIntent`)
-  * `fullScreenPendingIntent` ora creato con flags corretti per Android 14/15 senza eccezioni
-- [x] Implementazione Selettore Canzoni dal Telefono (`AudioPickerHelper.kt`):
-  * Creato `AudioPickerHelper.kt` per interrogare i metadati dei brani (`OpenableColumns.DISPLAY_NAME`) e salvare una copia locale permanente nella cartella protetta dell'app (`files/custom_alarms/`)
-  * Garantita la persistenza del file anche dopo il riavvio del telefono o l'eliminazione/spostamento del file originale da Download/Musica
-  * Integrazione in `ToneGeneratorHelper.kt` con supporto ad URI di file locali e content provider, con fallback su sirena sintetizzata se il file risulta corrotto
-- [x] Nuova Sezione Suonerie in `AlarmEditDialog.kt`:
-  * Scheda Cyber Dark con indicazione del brano selezionato
-  * Pulsante Play/Stop per ascoltare l'anteprima del brano direttamente nel dialogo
-  * Pulsante "Scegli Canzone dal Telefono 🎵" con selettore audio di sistema (`ActivityResultContracts.GetContent`)
-  * Pulsante per rimuovere la canzone e ripristinare la suoneria predefinita
-  * Badge visuale `🎵 BRANO` in `AlarmCard` per distinguere a colpo d'occhio le sveglie con musica personalizzata
-- [x] Aggiunti permessi `READ_MEDIA_AUDIO` e `READ_EXTERNAL_STORAGE` in `AndroidManifest.xml`
-- [x] Compilazione verificata con successo (`BUILD SUCCESSFUL in 1m 5s`) ed installazione su dispositivo fisico USB
+## Modulo 20: Risoluzione Sveglie Consecutive & Persistenza App Aperta allo Spegnimento
+- [x] Persistenza automatica di TapOut aperta allo spegnimento della sveglia:
+  * Sostituito `finishAndRemoveTask()` con `closeAlarmAndOpenDashboard()`: all'avvenuto spegnimento della sveglia (NFC, Dance, Sorrisi/Baci o simulatore), l'allarme si ferma e TapOut lancia direttamente `MainActivity` portandola in primo piano
+  * Configurato `showWhenLocked="true"` e `turnScreenOn="true"` su `MainActivity` in `AndroidManifest.xml` per visualizzare subito la Dashboard anche sopra la schermata di blocco
+- [x] Risoluzione bug spegnimento NFC su sveglie consecutive o ravvicinate:
+  * Individuata la causa: l'istanza `AlarmActivity` (precedentemente `singleInstance`) manteneva `currentState = AlarmRingState.DISMISSED` e bloccava il metodo `processScannedUid()` sulle sveglie successive
+  * Implementato `handleNewAlarmTrigger()` in `onNewIntent()`: ripristino istantaneo di `currentState = AlarmRingState.RINGING`, azzeramento errori di scansione, ricaricamento dei parametri della sveglia e riattivazione immediata di `ReaderMode`
+  * Impostato `launchMode="singleTask"` per consentire la transizione fluida verso la Dashboard dell'app
+  * Lettura dinamica dei tag registrati da Room ad ogni scansione (`getAllRegisteredUids()`) per garantire validazioni sempre sincronizzate
+- [x] Compilazione verificata con successo (`BUILD SUCCESSFUL in 52s`) ed installazione su dispositivo fisico USB
+
 
 
 

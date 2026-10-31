@@ -53,3 +53,22 @@ Al primo avvio, TapOut ti guiderà attraverso un **Wizard di Autorizzazione**:
 - Dalla scheda **Blocco App**, seleziona le applicazioni che ti distraggono (social media, giochi, browser).
 - Imposta le fasce orarie in cui desideri che siano inaccessibili o tocca **"Avvia Blocco Immediato"**.
 - Durante la sessione attiva, l'apertura delle app selezionate sarà bloccata istantaneamente: per sbloccarle prima dell'orario stabilito, dovrai scansionare il Tag NFC o superare la Dance Mission.
+
+---
+
+## 4. Affidabilità Estrema: Modalità Aereo, Non Disturbare e App Chiusa
+
+### ✈️ Funzionamento in Modalità Aereo (100% Offline)
+- TapOut è progettato con un'architettura **completamente autonoma e on-device**.
+- Non richiede connessione Internet né per far suonare la sveglia, né per la fotocamera (Google ML Kit opera 100% in memoria RAM locale), né per l'NFC.
+- In modalità aereo la sveglia scatta regolarmente e l'NFC funziona perfettamente.
+
+### 🌙 Compatibilità con la Modalità Non Disturbare (DND / Zen Mode)
+- TapOut impiega il canale audio `STREAM_ALARM` con il flag `AudioAttributes.FLAG_AUDIBILITY_ENFORCED`, che per standard Android bypassa il filtro Non Disturbare.
+- Anche la vibrazione d'emergenza include attributi d'allarme dedicati che superano le restrizioni di silenzioso o vibrazione disattivata.
+- Se hai concesso l'autorizzazione di sistema **Accesso a Non Disturbare** (`ACCESS_NOTIFICATION_POLICY`), TapOut garantisce programmaticamente che la sveglia suoni sempre a volume massimo.
+
+### 🔒 Spegnimento ad App Completamente Chiusa
+- Se chiudi TapOut dalle app recenti (swipe-up o arresto forzato), `AlarmManager.setAlarmClock()` risveglia il processore al millisecondo previsto.
+- Il Broadcast Receiver di TapOut dispone del privilegio ufficiale di sistema per lanciare immediatamente la schermata a tutto schermo `AlarmActivity`, attivando il modulo di lettura NFC istantaneo per consentirti di spegnere la sveglia col tuo tag.
+- Al riconoscimento del tag, il suono si arresta subito e compare la schermata di conferma, assorbendo le letture successive per evitare l'apertura della schermata nativa *"New tag collected"* del telefono.

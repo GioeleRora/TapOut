@@ -29,6 +29,7 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
 
     <!-- System overlay & Battery optimization -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
@@ -61,13 +62,31 @@
         <!-- Alarm Ringing Full Screen Activity -->
         <activity
             android:name=".ui.screens.alarmactive.AlarmActivity"
-            android:exported="false"
+            android:exported="true"
             android:launchMode="singleInstance"
             android:excludeFromRecents="true"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
             android:showOnLockScreen="true"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden" />
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden">
+            <intent-filter>
+                <action android:name="com.tapout.action.ALARM_RING" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <!-- Intercetta tag NFC con priorità massima per bloccare com.android.apps.tag TagViewer -->
+            <intent-filter android:priority="999">
+                <action android:name="android.nfc.action.TAG_DISCOVERED" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter android:priority="999">
+                <action android:name="android.nfc.action.TECH_DISCOVERED" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+            <intent-filter android:priority="999">
+                <action android:name="android.nfc.action.NDEF_DISCOVERED" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
 
         <!-- App Blocker Overlay Activity -->
         <activity

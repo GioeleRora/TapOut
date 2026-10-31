@@ -39,6 +39,7 @@ class ToneGeneratorHelper(private val context: Context) {
                     AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_ALARM)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
                         .build()
                 )
                 isLooping = true
@@ -66,6 +67,7 @@ class ToneGeneratorHelper(private val context: Context) {
                     AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_ALARM)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .setFlags(AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
                         .build()
                 )
                 .setAudioFormat(

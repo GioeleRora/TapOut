@@ -71,6 +71,7 @@ class BlockerOverlayActivity : ComponentActivity() {
     private lateinit var nfcHelper: NfcHelper
     private var registeredUids: List<String> = emptyList()
     private var isTestMode = true
+    private var isUnlocked = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -130,16 +131,16 @@ class BlockerOverlayActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        nfcHelper.enableReaderMode(this) { scannedUid ->
-            processScannedUid(scannedUid)
+        if (nfcHelper.isNfcSupported && nfcHelper.isNfcEnabled) {
+            nfcHelper.enableReaderMode(this) { scannedUid ->
+                processScannedUid(scannedUid)
+            }
         }
-        nfcHelper.enableForegroundDispatch(this)
     }
 
     override fun onPause() {
         super.onPause()
         nfcHelper.disableReaderMode(this)
-        nfcHelper.disableForegroundDispatch(this)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -152,6 +153,7 @@ class BlockerOverlayActivity : ComponentActivity() {
     }
 
     private fun processScannedUid(scannedUid: String) {
+        if (isUnlocked) return
         lifecycleScope.launch {
             val uids = if (registeredUids.isEmpty()) {
                 withContext(Dispatchers.IO) {

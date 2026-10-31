@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -31,12 +32,14 @@ import kotlinx.coroutines.withContext
 enum class AlarmRingState {
     RINGING,
     DANCE_MISSION,
-    SMILE_KISS_MISSION
+    SMILE_KISS_MISSION,
+    DISMISSED
 }
 
 class AlarmActivity : ComponentActivity() {
 
     private lateinit var nfcHelper: NfcHelper
+    private var wakeLock: PowerManager.WakeLock? = null
     private var registeredUids: List<String> = emptyList()
     private var registeredTagNames: List<String> = emptyList()
     private var isTestMode by mutableStateOf(true)
@@ -49,6 +52,17 @@ class AlarmActivity : ComponentActivity() {
 
         setupLockscreenFlags()
         hideSystemBars()
+
+        try {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            wakeLock = powerManager.newWakeLock(
+                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
+                        PowerManager.ACQUIRE_CAUSES_WAKEUP or
+                        PowerManager.ON_AFTER_RELEASE,
+                "TapOut:AlarmActivityWakeLock"
+            )
+            wakeLock?.acquire(10 * 60 * 1000L) // 10 minuti di guardia
+        } catch (_: Exception) {}
 
         nfcHelper = NfcHelper(this)
 
@@ -115,7 +129,16 @@ class AlarmActivity : ComponentActivity() {
                         DanceMissionScreen(
                             targetSeconds = DanceDetector.DANCE_REQUIRED_SECONDS,
                             onMissionCompleted = {
-                                stopAlarmAndFinish()
+                                val stopIntent = Intent(this@AlarmActivity, AlarmService::class.java).apply {
+                                    action = AlarmService.ACTION_STOP_ALARM
+                                }
+                                startService(stopIntent)
+                                currentState = AlarmRingState.DISMISSED
+                                window.decorView.postDelayed({
+                                    if (!isFinishing && !isDestroyed) {
+                                        finishAndRemoveTask()
+                                    }
+                                }, 2000)
                             },
                             onCancel = {
                                 val unduckIntent = Intent(this@AlarmActivity, AlarmService::class.java).apply {
@@ -130,7 +153,16 @@ class AlarmActivity : ComponentActivity() {
                     AlarmRingState.SMILE_KISS_MISSION -> {
                         SmileKissMissionScreen(
                             onMissionCompleted = {
-                                stopAlarmAndFinish()
+                                val stopIntent = Intent(this@AlarmActivity, AlarmService::class.java).apply {
+                                    action = AlarmService.ACTION_STOP_ALARM
+                                }
+                                startService(stopIntent)
+                                currentState = AlarmRingState.DISMISSED
+                                window.decorView.postDelayed({
+                                    if (!isFinishing && !isDestroyed) {
+                                        finishAndRemoveTask()
+                                    }
+                                }, 2000)
                             },
                             onCancel = {
                                 val unduckIntent = Intent(this@AlarmActivity, AlarmService::class.java).apply {
@@ -138,6 +170,14 @@ class AlarmActivity : ComponentActivity() {
                                 }
                                 startService(unduckIntent)
                                 currentState = AlarmRingState.RINGING
+                            }
+                        )
+                    }
+
+                    AlarmRingState.DISMISSED -> {
+                        AlarmDismissedScreen(
+                            onClose = {
+                                finishAndRemoveTask()
                             }
                         )
                     }
@@ -150,21 +190,28 @@ class AlarmActivity : ComponentActivity() {
         super.onResume()
         hideSystemBars()
         val requireNfc = intent.getBooleanExtra(AlarmScheduler.EXTRA_REQUIRE_NFC, true)
-        if (requireNfc) {
+        if (requireNfc && nfcHelper.isNfcSupported) {
             if (!nfcHelper.isNfcEnabled) {
                 nfcHelper.tryEnableNfcOrOpenPrompt(this)
             }
             nfcHelper.enableReaderMode(this) { scannedUid ->
                 processScannedUid(scannedUid)
             }
-            nfcHelper.enableForegroundDispatch(this)
         }
     }
 
     override fun onPause() {
         super.onPause()
         nfcHelper.disableReaderMode(this)
-        nfcHelper.disableForegroundDispatch(this)
+    }
+
+    override fun onDestroy() {
+        try {
+            if (wakeLock?.isHeld == true) {
+                wakeLock?.release()
+            }
+        } catch (_: Exception) {}
+        super.onDestroy()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -177,6 +224,11 @@ class AlarmActivity : ComponentActivity() {
     }
 
     private fun processScannedUid(scannedUid: String) {
+        if (currentState == AlarmRingState.DISMISSED) {
+            // Già disattivata: assorbi silenziosamente i rimbalzi del chip NFC mentre l'utente allontana il tag
+            return
+        }
+
         lifecycleScope.launch {
             val uids = if (registeredUids.isEmpty()) {
                 withContext(Dispatchers.IO) {
@@ -192,10 +244,24 @@ class AlarmActivity : ComponentActivity() {
 
             if (isValid) {
                 isScanError = false
-                scanFeedbackMessage = "✅ Tag Riconosciuto! Spegnimento..."
+                scanFeedbackMessage = "✅ Tag Riconosciuto! Sveglia Spenta"
+                currentState = AlarmRingState.DISMISSED
+
+                // Ferma subito suono e vibrazione inarrestabile
+                val stopIntent = Intent(this@AlarmActivity, AlarmService::class.java).apply {
+                    action = AlarmService.ACTION_STOP_ALARM
+                }
+                startService(stopIntent)
+
+                // IMPORTANTE: NON chiudere l'activity dopo soli 400ms!
+                // Mantenendo l'activity a schermo e il ReaderMode attivo per 2.5 secondi,
+                // assorbiamo le letture ripetute mentre l'utente allontana la mano.
+                // Questo impedisce categoricamente al sistema operativo Android di aprire "TagViewer (Empty tag)"!
                 window.decorView.postDelayed({
-                    stopAlarmAndFinish()
-                }, 400)
+                    if (!isFinishing && !isDestroyed) {
+                        finishAndRemoveTask()
+                    }
+                }, 2500)
             } else {
                 isScanError = true
                 scanFeedbackMessage = "⚠️ Tag non valido ($scannedUid). Usa uno dei tag registrati!"

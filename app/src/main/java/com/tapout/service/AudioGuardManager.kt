@@ -70,15 +70,33 @@ class AudioGuardManager(private val context: Context) {
                 audioManager.setStreamVolume(AudioManager.STREAM_ALARM, maxVol, 0)
             }
         } catch (_: Exception) {}
+        ensureDndBypass()
+    }
+
+    private fun ensureDndBypass() {
+        try {
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && notificationManager?.isNotificationPolicyAccessGranted == true) {
+                // Imposta il filtro Non Disturbare per consentire sempre gli allarmi
+                notificationManager.setInterruptionFilter(android.app.NotificationManager.INTERRUPTION_FILTER_ALARMS)
+            }
+        } catch (_: Exception) {}
     }
 
     private fun startVibration() {
         vibrationJob = scope.launch {
             val pattern = longArrayOf(0, 600, 200, 600, 200, 800)
+            val audioAttributes = android.media.AudioAttributes.Builder()
+                .setUsage(android.media.AudioAttributes.USAGE_ALARM)
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setFlags(android.media.AudioAttributes.FLAG_AUDIBILITY_ENFORCED)
+                .build()
+
             while (isActive) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     val effect = VibrationEffect.createWaveform(pattern, 0)
-                    vibrator.vibrate(effect)
+                    @Suppress("DEPRECATION")
+                    vibrator.vibrate(effect, audioAttributes)
                 } else {
                     @Suppress("DEPRECATION")
                     vibrator.vibrate(pattern, 0)

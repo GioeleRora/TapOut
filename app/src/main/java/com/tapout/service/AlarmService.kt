@@ -67,9 +67,11 @@ class AlarmService : Service() {
         requireSmileKiss: Boolean
     ) {
         val fullScreenIntent = Intent(this, AlarmActivity::class.java).apply {
+            action = "com.tapout.action.ALARM_RING"
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_NO_USER_ACTION or
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra(AlarmScheduler.EXTRA_ALARM_ID, alarmId)
             putExtra(AlarmScheduler.EXTRA_ALARM_LABEL, label)
             putExtra(AlarmScheduler.EXTRA_REQUIRE_NFC, requireNfc)
@@ -77,11 +79,22 @@ class AlarmService : Service() {
             putExtra(AlarmScheduler.EXTRA_REQUIRE_SMILE_KISS, requireSmileKiss)
         }
 
+        val activityOptionsBundle = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            android.app.ActivityOptions.makeBasic().apply {
+                setPendingIntentBackgroundActivityStartMode(
+                    android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
+                )
+            }.toBundle()
+        } else {
+            null
+        }
+
         val fullScreenPendingIntent = PendingIntent.getActivity(
             this,
             alarmId.toInt(),
             fullScreenIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            activityOptionsBundle
         )
 
         val notification: Notification = NotificationCompat.Builder(this, TapOutApplication.ALARM_CHANNEL_ID)
@@ -107,8 +120,10 @@ class AlarmService : Service() {
             startForeground(NOTIFICATION_ID, notification)
         }
 
-        // Avvia direttamente anche l'Activity a schermo intero
-        startActivity(fullScreenIntent)
+        // Tenta l'avvio immediato a schermo intero
+        try {
+            startActivity(fullScreenIntent)
+        } catch (_: Exception) {}
     }
 
     private fun stopAlarm() {

@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Nfc
@@ -436,6 +437,83 @@ fun AlarmActiveScreen(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun AlarmDismissedScreen(
+    onClose: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(CyberBlack)
+            .padding(28.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(CircleShape)
+                    .background(NeonMint.copy(alpha = 0.2f))
+                    .border(2.dp, NeonMint, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = NeonMint,
+                    modifier = Modifier.size(56.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            Text(
+                text = "Sveglia Disattivata!",
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Black,
+                    color = TextWhite
+                ),
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = "Tag riconosciuto con successo.\nPuoi allontanare il tag NFC dal telefono.",
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    color = NeonMint,
+                    fontWeight = FontWeight.Medium
+                ),
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(36.dp))
+
+            Button(
+                onClick = onClose,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = NeonMint,
+                    contentColor = CyberBlack
+                ),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth(0.7f)
+                    .height(52.dp)
+            ) {
+                Text(
+                    text = "Chiudi",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold
+                    )
+                )
             }
         }
     }

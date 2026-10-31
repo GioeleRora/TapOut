@@ -167,13 +167,22 @@ Stato: `[ ]` Non Iniziato | `[~]` In Lavorazione | `[x]` Completato
 
 ---
 
-## Modulo 17: Multi-Tag NFC Fisico (Piano PRO) & Ottimizzazione Motore Scansione Sveglia
-- [x] Creazione `NfcTagEntity.kt` e `NfcTagDao.kt` per memorizzare e gestire tag multipli in Room Database (`AppDatabase` v3)
-- [x] Gestione Multi-Tag nel `SettingsRepository.kt` e interfaccia grafica in `SettingsScreen.kt` con dialogo promozionale PRO
-- [x] Ottimizzazione a zero-latenza di `NfcHelper.kt` con `FLAG_READER_SKIP_NDEF_CHECK`, feedback aptico istantaneo (`vibrateFeedback`), normalizzazione stringhe UID e `enableForegroundDispatch`
-- [x] Supporto a `onNewIntent` in `AlarmActivity.kt` e `BlockerOverlayActivity.kt` per catturare i tag anche se recapitati via Intent di sistema
-- [x] Messaggio di feedback visuale e aptico in tempo reale in `AlarmActiveScreen.kt` (conferma visiva se il tag scansionato corrisponde o se è sconosciuto)
-- [x] Compilazione verificata ed installazione su dispositivo fisico via USB
+## Modulo 18: Risoluzione TagViewer Android ("Empty tag"), Lancio ad App Chiusa, DND ed Airplane Mode
+- [x] Eliminazione schermata di sistema `TagViewer ("New tag collected / Empty tag")`:
+  * Introdotto stato `AlarmRingState.DISMISSED` e schermata dedicata `AlarmDismissedScreen` con pulsante "Chiudi"
+  * All'avvenuto riconoscimento del tag, arresto immediato del suono ma mantenimento attivo di `ReaderMode` per 2.5s per assorbire silenziosamente le letture ripetute mentre l'utente allontana fisicamente il tag dal telefono
+  * Aggiunti intent-filter con `android:priority="999"` per `TAG_DISCOVERED`, `TECH_DISCOVERED` e `NDEF_DISCOVERED` su `AlarmActivity` in `AndroidManifest.xml`
+- [x] Risoluzione spegnimento con NFC ad App Chiusa (Processo terminato / Swipe da Recenti):
+  * `AlarmReceiver` ora avvia `AlarmActivity` direttamente in `onReceive()` sfruttando l'esenzione ufficiale `AlarmManager.setAlarmClock()` dalle restrizioni BAL di Android 14/15
+  * Configurato `ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED` su Android 14+ per il PendingIntent a schermo intero
+  * Acquisizione `WakeLock` dedicato con `ACQUIRE_CAUSES_WAKEUP` sia in `AlarmReceiver` che in `AlarmActivity` per garantire l'accensione immediata dello schermo
+- [x] Ottimizzazione Modalità Non Disturbare (DND) e Modalità Aereo:
+  * Inserito `FLAG_AUDIBILITY_ENFORCED` su `MediaPlayer` e `AudioTrack` con `AudioAttributes.USAGE_ALARM`
+  * Vibrazione d'allarme con `USAGE_ALARM` e `FLAG_AUDIBILITY_ENFORCED` per forzare la vibrazione anche durante DND / Silenzioso
+  * Richiesta e verifica della policy DND (`ACCESS_NOTIFICATION_POLICY`) per impostare `INTERRUPTION_FILTER_ALARMS`
+  * Funzionamento 100% offline garantito in Modalità Aereo (RTC hardware + audio locale + ML Kit on-device)
+- [x] Compilazione verificata con successo (`BUILD SUCCESSFUL in 1m 28s`) ed installazione su dispositivo fisico USB
+
 
 
 

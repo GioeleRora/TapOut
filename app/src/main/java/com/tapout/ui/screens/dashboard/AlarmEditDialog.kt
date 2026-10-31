@@ -1,5 +1,9 @@
 package com.tapout.ui.screens.dashboard
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,11 +22,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Nfc
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SentimentVerySatisfied
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -35,6 +43,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -44,14 +53,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.tapout.data.local.entity.AlarmEntity
 import com.tapout.ui.theme.CyberBlack
 import com.tapout.ui.theme.ElectricPurple
+import com.tapout.ui.theme.NeonMint
 import com.tapout.ui.theme.NeonPink
 import com.tapout.ui.theme.NeonPinkBright
 import com.tapout.ui.theme.SurfaceBorder
@@ -59,6 +71,7 @@ import com.tapout.ui.theme.SurfaceDark
 import com.tapout.ui.theme.SurfaceElevated
 import com.tapout.ui.theme.TextMuted
 import com.tapout.ui.theme.TextWhite
+import com.tapout.util.AudioPickerHelper
 import java.util.Locale
 
 @Composable
@@ -67,6 +80,7 @@ fun AlarmEditDialog(
     onDismiss: () -> Unit,
     onSave: (AlarmEntity) -> Unit
 ) {
+    val context = LocalContext.current
     var hour by remember { mutableIntStateOf(alarmToEdit?.hour ?: 7) }
     var minute by remember { mutableIntStateOf(alarmToEdit?.minute ?: 0) }
     var label by remember {
@@ -78,6 +92,30 @@ fun AlarmEditDialog(
     var requireNfc by remember { mutableStateOf(alarmToEdit?.requireNfc ?: true) }
     var requireDance by remember { mutableStateOf(alarmToEdit?.requireDance ?: false) }
     var requireSmileKiss by remember { mutableStateOf(alarmToEdit?.requireSmileKiss ?: false) }
+
+    var soundUri by remember { mutableStateOf(alarmToEdit?.soundUri ?: "") }
+    var soundTitle by remember(soundUri) {
+        mutableStateOf(AudioPickerHelper.getDisplayName(context, soundUri))
+    }
+    var isPreviewPlaying by remember { mutableStateOf(false) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            AudioPickerHelper.stopPreview()
+        }
+    }
+
+    val audioPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val savedPath = AudioPickerHelper.saveAudioToInternalStorage(context, uri)
+            soundUri = savedPath ?: uri.toString()
+            soundTitle = AudioPickerHelper.getDisplayName(context, soundUri)
+            AudioPickerHelper.stopPreview()
+            isPreviewPlaying = false
+        }
+    }
 
     val initialDays = remember {
         alarmToEdit?.daysOfWeek?.split(",")?.mapNotNull { it.trim().toIntOrNull() }?.toSet() ?: setOf(1, 2, 3, 4, 5)
@@ -204,6 +242,146 @@ fun AlarmEditDialog(
 
                 Spacer(modifier = Modifier.height(18.dp))
 
+                // Sezione Suoneria Sveglia / Canzone dal Telefono
+                Text(
+                    text = "SUONERIA DELLA SVEGLIA",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        color = NeonPinkBright,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(SurfaceElevated)
+                        .border(1.dp, SurfaceBorder, RoundedCornerShape(16.dp))
+                        .padding(14.dp)
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (soundUri.isNotBlank()) NeonMint.copy(alpha = 0.2f)
+                                        else ElectricPurple.copy(alpha = 0.2f)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.MusicNote,
+                                    contentDescription = null,
+                                    tint = if (soundUri.isNotBlank()) NeonMint else ElectricPurple,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (soundUri.isNotBlank()) "Canzone Personalizzata" else "Suoneria di Default",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = if (soundUri.isNotBlank()) NeonMint else TextMuted,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                )
+                                Text(
+                                    text = soundTitle,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        color = TextWhite,
+                                        fontWeight = FontWeight.SemiBold
+                                    ),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            if (soundUri.isNotBlank()) {
+                                // Pulsante Play / Stop Anteprima
+                                IconButton(
+                                    onClick = {
+                                        if (isPreviewPlaying) {
+                                            AudioPickerHelper.stopPreview()
+                                            isPreviewPlaying = false
+                                        } else {
+                                            isPreviewPlaying = true
+                                            AudioPickerHelper.playPreview(context, soundUri) {
+                                                isPreviewPlaying = false
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.size(34.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isPreviewPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
+                                        contentDescription = "Ascolta",
+                                        tint = NeonMint
+                                    )
+                                }
+
+                                // Pulsante Rimuovi Canzone
+                                IconButton(
+                                    onClick = {
+                                        AudioPickerHelper.stopPreview()
+                                        isPreviewPlaying = false
+                                        soundUri = ""
+                                        soundTitle = AudioPickerHelper.getDisplayName(context, "")
+                                    },
+                                    modifier = Modifier.size(34.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Rimuovi brano",
+                                        tint = TextMuted
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Button(
+                            onClick = {
+                                AudioPickerHelper.stopPreview()
+                                isPreviewPlaying = false
+                                audioPickerLauncher.launch("audio/*")
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = SurfaceDark,
+                                contentColor = NeonMint
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, NeonMint.copy(alpha = 0.5f))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MusicNote,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (soundUri.isNotBlank()) "Cambia Canzone dal Telefono" else "Scegli Canzone dal Telefono 🎵",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
                 // Intestazione Sezione Metodi di Spegnimento
                 Text(
                     text = "METODI PER SPEGNERE LA SVEGLIA",
@@ -275,13 +453,17 @@ fun AlarmEditDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    TextButton(onClick = onDismiss) {
+                    TextButton(onClick = {
+                        AudioPickerHelper.stopPreview()
+                        onDismiss()
+                    }) {
                         Text("Annulla", color = TextMuted)
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Button(
                         onClick = {
                             if (!hasAtLeastOneMethod) return@Button
+                            AudioPickerHelper.stopPreview()
                             val daysString = selectedDays.sorted().joinToString(",")
                             val result = AlarmEntity(
                                 id = alarmToEdit?.id ?: 0L,
@@ -291,7 +473,7 @@ fun AlarmEditDialog(
                                 daysOfWeek = daysString,
                                 isEnabled = true,
                                 vibrate = true, // Sempre attiva e garantita
-                                soundUri = alarmToEdit?.soundUri ?: "",
+                                soundUri = soundUri,
                                 requireNfc = requireNfc,
                                 requireDance = requireDance,
                                 requireSmileKiss = requireSmileKiss

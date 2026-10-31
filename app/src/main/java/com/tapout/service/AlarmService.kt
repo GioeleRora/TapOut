@@ -79,22 +79,11 @@ class AlarmService : Service() {
             putExtra(AlarmScheduler.EXTRA_REQUIRE_SMILE_KISS, requireSmileKiss)
         }
 
-        val activityOptionsBundle = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            android.app.ActivityOptions.makeBasic().apply {
-                setPendingIntentBackgroundActivityStartMode(
-                    android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED
-                )
-            }.toBundle()
-        } else {
-            null
-        }
-
         val fullScreenPendingIntent = PendingIntent.getActivity(
             this,
             alarmId.toInt(),
             fullScreenIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-            activityOptionsBundle
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val notification: Notification = NotificationCompat.Builder(this, TapOutApplication.ALARM_CHANNEL_ID)

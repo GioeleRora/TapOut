@@ -37,6 +37,12 @@ Al primo avvio, TapOut ti guiderà attraverso un **Wizard di Autorizzazione**:
 - **Nessun pulsante Snooze:** Non puoi rimandare la sveglia.
 - **Anti-Silenziamento:** Se premi i tasti del volume del telefono, il volume torna al 100% in millisecondi.
 
+### 🎵 Selezione Canzone dal Telefono come Sveglia
+- Nel dialogo di creazione/modifica della sveglia trovi la sezione **"SUONERIA DELLA SVEGLIA"**.
+- Tocca **"Scegli Canzone dal Telefono 🎵"** per selezionare qualsiasi file audio (MP3, WAV, FLAC, AAC, M4A) dalla memoria del tuo dispositivo.
+- **Garanzia di Riproduzione:** TapOut salva una copia protetta del brano nella memoria interna dell'applicazione. Anche se sposti o cancelli il file dalla cartella Download o riavvii il telefono, la tua canzone suonerà sempre.
+- Puoi ascoltare l'anteprima del brano con il tasto ▶️/⏹️ prima di salvare, oppure toccare ✕ per tornare alla suoneria predefinita di sistema.
+
 ### 🕺 La Dance Mission (30 Secondi di Movimento)
 - Selezionando la Dance Mission nella sveglia o come metodo di sblocco d'emergenza, si aprirà la fotocamera frontale con un anello circolare di progresso.
 - **Come funziona:** Inquadrati a figura intera o mezzo busto e comincia a ballare o muovere braccia e gambe a ritmo.

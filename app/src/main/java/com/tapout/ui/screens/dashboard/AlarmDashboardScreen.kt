@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Nfc
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material3.FloatingActionButton
@@ -348,6 +349,10 @@ fun AlarmCard(
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (alarm.soundUri.isNotBlank()) {
+                        MissionBadge(icon = Icons.Default.MusicNote, text = "BRANO", color = NeonMint)
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
                     if (alarm.requireNfc) {
                         MissionBadge(icon = Icons.Default.Nfc, text = "NFC", color = ElectricPurple)
                         Spacer(modifier = Modifier.width(6.dp))

@@ -26,7 +26,11 @@ class ToneGeneratorHelper(private val context: Context) {
         stopAlarmSound()
 
         val uri = if (soundUriString.isNotBlank()) {
-            Uri.parse(soundUriString)
+            if (soundUriString.startsWith("/")) {
+                Uri.fromFile(java.io.File(soundUriString))
+            } else {
+                Uri.parse(soundUriString)
+            }
         } else {
             RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
                 ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)

@@ -167,21 +167,23 @@ Stato: `[ ]` Non Iniziato | `[~]` In Lavorazione | `[x]` Completato
 
 ---
 
-## Modulo 18: Risoluzione TagViewer Android ("Empty tag"), Lancio ad App Chiusa, DND ed Airplane Mode
-- [x] Eliminazione schermata di sistema `TagViewer ("New tag collected / Empty tag")`:
-  * Introdotto stato `AlarmRingState.DISMISSED` e schermata dedicata `AlarmDismissedScreen` con pulsante "Chiudi"
-  * All'avvenuto riconoscimento del tag, arresto immediato del suono ma mantenimento attivo di `ReaderMode` per 2.5s per assorbire silenziosamente le letture ripetute mentre l'utente allontana fisicamente il tag dal telefono
-  * Aggiunti intent-filter con `android:priority="999"` per `TAG_DISCOVERED`, `TECH_DISCOVERED` e `NDEF_DISCOVERED` su `AlarmActivity` in `AndroidManifest.xml`
-- [x] Risoluzione spegnimento con NFC ad App Chiusa (Processo terminato / Swipe da Recenti):
-  * `AlarmReceiver` ora avvia `AlarmActivity` direttamente in `onReceive()` sfruttando l'esenzione ufficiale `AlarmManager.setAlarmClock()` dalle restrizioni BAL di Android 14/15
-  * Configurato `ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED` su Android 14+ per il PendingIntent a schermo intero
-  * Acquisizione `WakeLock` dedicato con `ACQUIRE_CAUSES_WAKEUP` sia in `AlarmReceiver` che in `AlarmActivity` per garantire l'accensione immediata dello schermo
-- [x] Ottimizzazione Modalità Non Disturbare (DND) e Modalità Aereo:
-  * Inserito `FLAG_AUDIBILITY_ENFORCED` su `MediaPlayer` e `AudioTrack` con `AudioAttributes.USAGE_ALARM`
-  * Vibrazione d'allarme con `USAGE_ALARM` e `FLAG_AUDIBILITY_ENFORCED` per forzare la vibrazione anche durante DND / Silenzioso
-  * Richiesta e verifica della policy DND (`ACCESS_NOTIFICATION_POLICY`) per impostare `INTERRUPTION_FILTER_ALARMS`
-  * Funzionamento 100% offline garantito in Modalità Aereo (RTC hardware + audio locale + ML Kit on-device)
-- [x] Compilazione verificata con successo (`BUILD SUCCESSFUL in 1m 28s`) ed installazione su dispositivo fisico USB
+## Modulo 19: Risoluzione Crash Avvio Sveglia & Selezione Brani Musicali Personalizzati
+- [x] Risoluzione crash fatale all'attivazione dell'allarme:
+  * Rimosso `activityOptionsBundle` da `PendingIntent.getActivity()` in `AlarmService.kt` (risolto `IllegalArgumentException: pendingIntentBackgroundActivityStartMode must not be set when creating a PendingIntent`)
+  * `fullScreenPendingIntent` ora creato con flags corretti per Android 14/15 senza eccezioni
+- [x] Implementazione Selettore Canzoni dal Telefono (`AudioPickerHelper.kt`):
+  * Creato `AudioPickerHelper.kt` per interrogare i metadati dei brani (`OpenableColumns.DISPLAY_NAME`) e salvare una copia locale permanente nella cartella protetta dell'app (`files/custom_alarms/`)
+  * Garantita la persistenza del file anche dopo il riavvio del telefono o l'eliminazione/spostamento del file originale da Download/Musica
+  * Integrazione in `ToneGeneratorHelper.kt` con supporto ad URI di file locali e content provider, con fallback su sirena sintetizzata se il file risulta corrotto
+- [x] Nuova Sezione Suonerie in `AlarmEditDialog.kt`:
+  * Scheda Cyber Dark con indicazione del brano selezionato
+  * Pulsante Play/Stop per ascoltare l'anteprima del brano direttamente nel dialogo
+  * Pulsante "Scegli Canzone dal Telefono 🎵" con selettore audio di sistema (`ActivityResultContracts.GetContent`)
+  * Pulsante per rimuovere la canzone e ripristinare la suoneria predefinita
+  * Badge visuale `🎵 BRANO` in `AlarmCard` per distinguere a colpo d'occhio le sveglie con musica personalizzata
+- [x] Aggiunti permessi `READ_MEDIA_AUDIO` e `READ_EXTERNAL_STORAGE` in `AndroidManifest.xml`
+- [x] Compilazione verificata con successo (`BUILD SUCCESSFUL in 1m 5s`) ed installazione su dispositivo fisico USB
+
 
 
 

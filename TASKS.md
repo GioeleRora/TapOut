@@ -165,4 +165,15 @@ Stato: `[ ]` Non Iniziato | `[~]` In Lavorazione | `[x]` Completato
   * Controllo e blocco in tempo reale in `AppSelectionDialog.kt`, `AppBlockerScreen.kt` e tabella in `SettingsScreen.kt`
 - [x] Compilazione verificata con successo (`BUILD SUCCESSFUL in 42s`) ed installazione su dispositivo fisico USB
 
+---
+
+## Modulo 17: Multi-Tag NFC Fisico (Piano PRO) & Ottimizzazione Motore Scansione Sveglia
+- [x] Creazione `NfcTagEntity.kt` e `NfcTagDao.kt` per memorizzare e gestire tag multipli in Room Database (`AppDatabase` v3)
+- [x] Gestione Multi-Tag nel `SettingsRepository.kt` e interfaccia grafica in `SettingsScreen.kt` con dialogo promozionale PRO
+- [x] Ottimizzazione a zero-latenza di `NfcHelper.kt` con `FLAG_READER_SKIP_NDEF_CHECK`, feedback aptico istantaneo (`vibrateFeedback`), normalizzazione stringhe UID e `enableForegroundDispatch`
+- [x] Supporto a `onNewIntent` in `AlarmActivity.kt` e `BlockerOverlayActivity.kt` per catturare i tag anche se recapitati via Intent di sistema
+- [x] Messaggio di feedback visuale e aptico in tempo reale in `AlarmActiveScreen.kt` (conferma visiva se il tag scansionato corrisponde o se è sconosciuto)
+- [x] Compilazione verificata ed installazione su dispositivo fisico via USB
+
+
 

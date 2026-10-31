@@ -75,6 +75,7 @@ fun NfcManagementDialog(
         if (activity != null) {
             nfcHelper.enableReaderMode(activity) { uid ->
                 scannedUid = uid
+                NfcHelper.vibrateFeedback(activity, isSuccess = true)
             }
         }
         onDispose {

@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Lock
@@ -78,12 +79,12 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
-    val registeredUid by TapOutApplication.settingsRepository.registeredNfcUid.collectAsState(initial = null)
-    val tagName by TapOutApplication.settingsRepository.nfcTagName.collectAsState(initial = "Tag Sveglia Principale")
+    val registeredTags by TapOutApplication.settingsRepository.allNfcTags.collectAsState(initial = emptyList())
     val isTestMode by TapOutApplication.settingsRepository.isTestMode.collectAsState(initial = true)
     val plan by TapOutApplication.billingManager.currentPlan.collectAsState()
 
     var showNfcDialog by remember { mutableStateOf(false) }
+    var showNfcProLimitDialog by remember { mutableStateOf(false) }
     var showRevokeDialog by remember { mutableStateOf(false) }
     var isTestingDanceMission by remember { mutableStateOf(false) }
     var isTestingSmileKissMission by remember { mutableStateOf(false) }
@@ -166,97 +167,184 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Sezione Tag NFC Hardware
-            Text(
-                text = "Tag NFC Fisico",
-                style = MaterialTheme.typography.titleLarge.copy(color = TextWhite)
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(SurfaceDark)
-                    .border(1.dp, SurfaceBorder, RoundedCornerShape(20.dp))
-                    .padding(18.dp)
+            // Sezione Tag NFC Hardware (Supporto Multi-Tag PRO)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(CircleShape)
-                                    .background(ElectricPurple.copy(alpha = 0.2f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Nfc,
-                                    contentDescription = null,
-                                    tint = NeonPurpleBright,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = if (registeredUid != null) tagName else "Nessun Tag Associato",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = TextWhite
-                                    )
-                                )
-                                Text(
-                                    text = if (registeredUid != null) "UID: $registeredUid" else "Avvicina un tag per registrarlo",
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        color = if (registeredUid != null) NeonMint else TextMuted,
-                                        fontWeight = if (registeredUid != null) FontWeight.Bold else FontWeight.Normal
-                                    )
-                                )
-                            }
-                        }
-
-                        if (registeredUid != null) {
-                            IconButton(
-                                onClick = {
-                                    scope.launch {
-                                        TapOutApplication.settingsRepository.clearNfcTag()
-                                    }
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Rimuovi Tag",
-                                    tint = TextMuted
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Button(
-                        onClick = { showNfcDialog = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = ElectricPurple,
-                            contentColor = TextWhite
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(imageVector = Icons.Default.Nfc, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (registeredUid != null) "Riassegna Tag NFC" else "Registra Nuovo Tag NFC",
+                Text(
+                    text = "Tag NFC Fisici",
+                    style = MaterialTheme.typography.titleLarge.copy(color = TextWhite)
+                )
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(
+                            if (plan == SubscriptionPlan.PREMIUM) NeonMint.copy(alpha = 0.2f)
+                            else ElectricPurple.copy(alpha = 0.2f)
+                        )
+                        .border(
+                            1.dp,
+                            if (plan == SubscriptionPlan.PREMIUM) NeonMint.copy(alpha = 0.5f)
+                            else ElectricPurple.copy(alpha = 0.5f),
+                            RoundedCornerShape(8.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = if (plan == SubscriptionPlan.PREMIUM) "${registeredTags.size} Tag (PRO VIP 👑)"
+                        else "${registeredTags.size} / 1 Tag (Base)",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = if (plan == SubscriptionPlan.PREMIUM) NeonMint else NeonPurpleBright,
                             fontWeight = FontWeight.Bold
                         )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            if (registeredTags.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(SurfaceDark)
+                        .border(1.dp, SurfaceBorder, RoundedCornerShape(18.dp))
+                        .padding(16.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(SurfaceElevated),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Nfc,
+                                contentDescription = null,
+                                tint = TextMuted,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Nessun Tag Registrato",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextWhite
+                                )
+                            )
+                            Text(
+                                text = "Qualsiasi tag NFC spegnerà la sveglia come fallback.",
+                                style = MaterialTheme.typography.bodySmall.copy(color = TextMuted)
+                            )
+                        }
                     }
                 }
+            } else {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    registeredTags.forEach { tag ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(SurfaceDark)
+                                .border(1.dp, SurfaceBorder, RoundedCornerShape(16.dp))
+                                .padding(14.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(CircleShape)
+                                            .background(ElectricPurple.copy(alpha = 0.2f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Nfc,
+                                            contentDescription = null,
+                                            tint = NeonPurpleBright,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = tag.name,
+                                            style = MaterialTheme.typography.titleMedium.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                color = TextWhite,
+                                                fontSize = 15.sp
+                                            )
+                                        )
+                                        Text(
+                                            text = "UID: ${tag.uid}",
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                color = NeonMint,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 11.5.sp
+                                            )
+                                        )
+                                    }
+                                }
+
+                                IconButton(
+                                    onClick = {
+                                        scope.launch {
+                                            TapOutApplication.settingsRepository.deleteNfcTag(tag.id)
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Rimuovi Tag",
+                                        tint = TextMuted
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Button(
+                onClick = {
+                    if (plan == SubscriptionPlan.PREMIUM || registeredTags.isEmpty()) {
+                        showNfcDialog = true
+                    } else {
+                        showNfcProLimitDialog = true
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = ElectricPurple,
+                    contentColor = TextWhite
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(imageVector = Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (registeredTags.isEmpty()) "Registra Tag NFC Principale" else "Aggiungi Altro Tag NFC (Multi-Tag)",
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -293,7 +381,7 @@ fun SettingsScreen(
             SettingsToggleRow(
                 icon = Icons.Default.TouchApp,
                 iconTint = NeonMint,
-                title = "Modalità Test Senza Tag",
+                title = "Modalit├á Test Senza Tag",
                 subtitle = "Consente di simulare il tap NFC a schermo per testare l'app prima dell'arrivo del tag fisico",
                 checked = isTestMode,
                 onCheckedChange = { enable ->
@@ -362,14 +450,14 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    text = if (plan == SubscriptionPlan.PREMIUM) "TapOut PRO (Attivo ⭐)" else "TapOut Base (Gratuito)",
+                                    text = if (plan == SubscriptionPlan.PREMIUM) "TapOut PRO (Attivo Ô¡É)" else "TapOut Base (Gratuito)",
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = if (plan == SubscriptionPlan.PREMIUM) NeonMint else TextWhite
                                     )
                                 )
                                 Text(
-                                    text = if (plan == SubscriptionPlan.PREMIUM) "Tutte le feature avanzate sbloccate" else "Funzionalità essenziali gratuite",
+                                    text = if (plan == SubscriptionPlan.PREMIUM) "Tutte le feature avanzate sbloccate" else "Funzionalit├á essenziali gratuite",
                                     style = MaterialTheme.typography.bodySmall.copy(color = TextMuted)
                                 )
                             }
@@ -403,7 +491,7 @@ fun SettingsScreen(
                         PlanFeatureRow(
                             feature = "App Bloccabili:",
                             baseValue = "Max 2 App",
-                            proValue = "Illimitate ⚡",
+                            proValue = "Illimitate ÔÜí",
                             isPro = plan == SubscriptionPlan.PREMIUM
                         )
                         PlanFeatureRow(
@@ -415,13 +503,13 @@ fun SettingsScreen(
                         PlanFeatureRow(
                             feature = "Tag NFC:",
                             baseValue = "1 Tag Registrato",
-                            proValue = "Multi-Tag Fisici ⚡",
+                            proValue = "Multi-Tag Fisici ÔÜí",
                             isPro = plan == SubscriptionPlan.PREMIUM
                         )
                         PlanFeatureRow(
                             feature = "Badge Profilo:",
                             baseValue = "Base Free",
-                            proValue = "Badge PRO VIP 👑",
+                            proValue = "Badge PRO VIP ­ƒææ",
                             isPro = plan == SubscriptionPlan.PREMIUM
                         )
                     }
@@ -510,6 +598,73 @@ fun SettingsScreen(
                 }
             }
         )
+    }
+
+    if (showNfcProLimitDialog) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showNfcProLimitDialog = false }) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(SurfaceDark)
+                    .border(1.5.dp, NeonMint, RoundedCornerShape(24.dp))
+                    .padding(24.dp)
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clip(CircleShape)
+                            .background(NeonMint.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = null,
+                            tint = NeonMint,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "Multi-Tag Fisici (Solo TapOut PRO 👑)",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = TextWhite
+                        ),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Nel piano Base gratuito puoi registrare 1 singolo Tag NFC.\n\nCon TapOut PRO puoi registrare molteplici tag fisici (es. uno in bagno, uno in cucina, il tuo badge aziendale) e spegnere la sveglia con uno qualsiasi di essi!",
+                        style = MaterialTheme.typography.bodyMedium.copy(color = TextMuted),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Button(
+                        onClick = {
+                            TapOutApplication.billingManager.toggleSimulatedPremium(true)
+                            showNfcProLimitDialog = false
+                            showNfcDialog = true
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = NeonMint,
+                            contentColor = CyberBlack
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Attiva TapOut PRO Ora", fontWeight = FontWeight.Black)
+                    }
+                }
+            }
+        }
     }
 
     if (showRevokeDialog) {

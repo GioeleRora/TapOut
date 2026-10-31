@@ -63,10 +63,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.withContext
+
 class BlockerOverlayActivity : ComponentActivity() {
 
     private lateinit var nfcHelper: NfcHelper
-    private var registeredUid: String? = null
+    private var registeredUids: List<String> = emptyList()
     private var isTestMode = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -75,9 +78,16 @@ class BlockerOverlayActivity : ComponentActivity() {
 
         val blockedPackage = intent.getStringExtra(EXTRA_BLOCKED_PACKAGE) ?: "App Bloccata"
 
-        CoroutineScope(Dispatchers.IO).launch {
-            registeredUid = TapOutApplication.settingsRepository.registeredNfcUid.first()
-            isTestMode = TapOutApplication.settingsRepository.isTestMode.first()
+        lifecycleScope.launch {
+            TapOutApplication.settingsRepository.allNfcTags.collect { tags ->
+                registeredUids = tags.map { it.uid }
+            }
+        }
+
+        lifecycleScope.launch {
+            TapOutApplication.settingsRepository.isTestMode.collect { mode ->
+                isTestMode = mode
+            }
         }
 
         setContent {
@@ -121,15 +131,41 @@ class BlockerOverlayActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         nfcHelper.enableReaderMode(this) { scannedUid ->
-            if (NfcHelper.isTagValid(scannedUid, registeredUid, isTestMode)) {
-                unlockAndExit()
-            }
+            processScannedUid(scannedUid)
         }
+        nfcHelper.enableForegroundDispatch(this)
     }
 
     override fun onPause() {
         super.onPause()
         nfcHelper.disableReaderMode(this)
+        nfcHelper.disableForegroundDispatch(this)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val uid = NfcHelper.extractUidFromIntent(intent)
+        if (uid != null) {
+            processScannedUid(uid)
+        }
+    }
+
+    private fun processScannedUid(scannedUid: String) {
+        lifecycleScope.launch {
+            val uids = if (registeredUids.isEmpty()) {
+                withContext(Dispatchers.IO) {
+                    TapOutApplication.settingsRepository.getAllRegisteredUids()
+                }
+            } else {
+                registeredUids
+            }
+            val isValid = NfcHelper.isTagValid(scannedUid, uids, isTestMode)
+            NfcHelper.vibrateFeedback(this@BlockerOverlayActivity, isSuccess = isValid)
+            if (isValid) {
+                unlockAndExit()
+            }
+        }
     }
 
     private fun unlockAndExit() {

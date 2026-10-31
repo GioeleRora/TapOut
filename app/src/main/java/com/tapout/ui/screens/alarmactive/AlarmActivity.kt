@@ -15,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.lifecycleScope
 import com.tapout.TapOutApplication
 import com.tapout.alarm.AlarmScheduler
 import com.tapout.nfc.NfcHelper
@@ -23,10 +24,9 @@ import com.tapout.ui.screens.dance.DanceMissionScreen
 import com.tapout.ui.screens.face.SmileKissMissionScreen
 import com.tapout.ui.theme.TapOutTheme
 import com.tapout.vision.DanceDetector
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 enum class AlarmRingState {
     RINGING,
@@ -37,9 +37,12 @@ enum class AlarmRingState {
 class AlarmActivity : ComponentActivity() {
 
     private lateinit var nfcHelper: NfcHelper
-    private var registeredUid: String? = null
-    private var isTestMode = true
+    private var registeredUids: List<String> = emptyList()
+    private var registeredTagNames: List<String> = emptyList()
+    private var isTestMode by mutableStateOf(true)
     private var currentState by mutableStateOf(AlarmRingState.RINGING)
+    private var scanFeedbackMessage by mutableStateOf<String?>(null)
+    private var isScanError by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,9 +57,17 @@ class AlarmActivity : ComponentActivity() {
         val requireDance = intent.getBooleanExtra(AlarmScheduler.EXTRA_REQUIRE_DANCE, true)
         val requireSmileKiss = intent.getBooleanExtra(AlarmScheduler.EXTRA_REQUIRE_SMILE_KISS, false)
 
-        CoroutineScope(Dispatchers.IO).launch {
-            registeredUid = TapOutApplication.settingsRepository.registeredNfcUid.first()
-            isTestMode = TapOutApplication.settingsRepository.isTestMode.first()
+        lifecycleScope.launch {
+            TapOutApplication.settingsRepository.allNfcTags.collect { tags ->
+                registeredUids = tags.map { it.uid }
+                registeredTagNames = tags.map { it.name }
+            }
+        }
+
+        lifecycleScope.launch {
+            TapOutApplication.settingsRepository.isTestMode.collect { mode ->
+                isTestMode = mode
+            }
         }
 
         setContent {
@@ -74,6 +85,9 @@ class AlarmActivity : ComponentActivity() {
                             requireSmileKiss = requireSmileKiss,
                             isTestMode = isTestMode,
                             isNfcHardwareEnabled = nfcHelper.isNfcEnabled,
+                            registeredTagNames = registeredTagNames,
+                            scanFeedbackMessage = scanFeedbackMessage,
+                            isScanError = isScanError,
                             onOpenNfcPanel = {
                                 nfcHelper.tryEnableNfcOrOpenPrompt(this@AlarmActivity)
                             },
@@ -81,7 +95,6 @@ class AlarmActivity : ComponentActivity() {
                                 stopAlarmAndFinish()
                             },
                             onStartDanceMission = {
-                                // Attenua il volume della sveglia mentre l'utente balla
                                 val duckIntent = Intent(this@AlarmActivity, AlarmService::class.java).apply {
                                     action = AlarmService.ACTION_DUCK_AUDIO
                                 }
@@ -105,7 +118,6 @@ class AlarmActivity : ComponentActivity() {
                                 stopAlarmAndFinish()
                             },
                             onCancel = {
-                                // Ripristina volume al 100%
                                 val unduckIntent = Intent(this@AlarmActivity, AlarmService::class.java).apply {
                                     action = AlarmService.ACTION_UNDUCK_AUDIO
                                 }
@@ -143,16 +155,55 @@ class AlarmActivity : ComponentActivity() {
                 nfcHelper.tryEnableNfcOrOpenPrompt(this)
             }
             nfcHelper.enableReaderMode(this) { scannedUid ->
-                if (NfcHelper.isTagValid(scannedUid, registeredUid, isTestMode)) {
-                    stopAlarmAndFinish()
-                }
+                processScannedUid(scannedUid)
             }
+            nfcHelper.enableForegroundDispatch(this)
         }
     }
 
     override fun onPause() {
         super.onPause()
         nfcHelper.disableReaderMode(this)
+        nfcHelper.disableForegroundDispatch(this)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val uid = NfcHelper.extractUidFromIntent(intent)
+        if (uid != null) {
+            processScannedUid(uid)
+        }
+    }
+
+    private fun processScannedUid(scannedUid: String) {
+        lifecycleScope.launch {
+            val uids = if (registeredUids.isEmpty()) {
+                withContext(Dispatchers.IO) {
+                    TapOutApplication.settingsRepository.getAllRegisteredUids()
+                }
+            } else {
+                registeredUids
+            }
+
+            val isValid = NfcHelper.isTagValid(scannedUid, uids, isTestMode)
+
+            NfcHelper.vibrateFeedback(this@AlarmActivity, isSuccess = isValid)
+
+            if (isValid) {
+                isScanError = false
+                scanFeedbackMessage = "✅ Tag Riconosciuto! Spegnimento..."
+                window.decorView.postDelayed({
+                    stopAlarmAndFinish()
+                }, 400)
+            } else {
+                isScanError = true
+                scanFeedbackMessage = "⚠️ Tag non valido ($scannedUid). Usa uno dei tag registrati!"
+                window.decorView.postDelayed({
+                    scanFeedbackMessage = null
+                }, 4000)
+            }
+        }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -189,6 +240,11 @@ class AlarmActivity : ComponentActivity() {
                         WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
             )
         }
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+        )
     }
 
     private fun hideSystemBars() {

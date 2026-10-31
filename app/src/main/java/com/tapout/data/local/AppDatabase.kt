@@ -7,17 +7,20 @@ import androidx.room.RoomDatabase
 import com.tapout.data.local.dao.AlarmDao
 import com.tapout.data.local.dao.BlockedAppDao
 import com.tapout.data.local.dao.BlockScheduleDao
+import com.tapout.data.local.dao.NfcTagDao
 import com.tapout.data.local.entity.AlarmEntity
 import com.tapout.data.local.entity.BlockedAppEntity
 import com.tapout.data.local.entity.BlockScheduleEntity
+import com.tapout.data.local.entity.NfcTagEntity
 
 @Database(
     entities = [
         AlarmEntity::class,
         BlockedAppEntity::class,
-        BlockScheduleEntity::class
+        BlockScheduleEntity::class,
+        NfcTagEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -25,6 +28,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun alarmDao(): AlarmDao
     abstract fun blockedAppDao(): BlockedAppDao
     abstract fun blockScheduleDao(): BlockScheduleDao
+    abstract fun nfcTagDao(): NfcTagDao
 
     companion object {
         @Volatile

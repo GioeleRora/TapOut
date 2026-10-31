@@ -69,6 +69,9 @@ fun AlarmActiveScreen(
     requireSmileKiss: Boolean = false,
     isTestMode: Boolean,
     isNfcHardwareEnabled: Boolean = true,
+    registeredTagNames: List<String> = emptyList(),
+    scanFeedbackMessage: String? = null,
+    isScanError: Boolean = false,
     onOpenNfcPanel: () -> Unit = {},
     onSimulateNfcTap: () -> Unit,
     onStartDanceMission: () -> Unit,
@@ -239,6 +242,33 @@ fun AlarmActiveScreen(
 
                     Spacer(modifier = Modifier.height(18.dp))
 
+                    if (scanFeedbackMessage != null) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (isScanError) androidx.compose.ui.graphics.Color(0xFFE53935).copy(alpha = 0.25f)
+                                    else NeonMint.copy(alpha = 0.25f)
+                                )
+                                .border(
+                                    1.dp,
+                                    if (isScanError) androidx.compose.ui.graphics.Color(0xFFE53935) else NeonMint,
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .padding(horizontal = 14.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text = scanFeedbackMessage,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    color = if (isScanError) androidx.compose.ui.graphics.Color(0xFFFF8A80) else NeonMint,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+
                     Text(
                         text = "Avvicina il Tag NFC al retro del telefono",
                         style = MaterialTheme.typography.titleLarge.copy(
@@ -247,6 +277,19 @@ fun AlarmActiveScreen(
                         ),
                         textAlign = TextAlign.Center
                     )
+
+                    if (registeredTagNames.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Tag configurati: ${registeredTagNames.joinToString(", ")}",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = NeonMint,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
                     Text(
                         text = if (requireDance || requireSmileKiss)
                             "Oppure completa una delle missioni qui sotto"

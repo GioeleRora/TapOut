@@ -42,10 +42,11 @@ Al primo avvio, TapOut ti guiderà attraverso un **Wizard di Autorizzazione**:
 - **Come funziona:** Inquadrati a figura intera o mezzo busto e comincia a ballare o muovere braccia e gambe a ritmo.
 - **L'anello avanza solo mentre ti muovi:** Se ti fermi o esci dall'inquadratura, il timer si congela e lo schermo ti incoraggia a continuare. Al completamento dei 30 secondi effettivi di movimento, la sveglia si arresta!
 
-### 📱 Sblocco Fisico con Tag NFC
-- Vai nella scheda **Impostazioni** dell'app e tocca **"Registra Nuovo Tag NFC"**.
-- Avvicina qualsiasi tag NFC (NTAG213, NTAG215, NTAG216, tessere della metro o badge da lavoro) al retro del telefono.
-- Il tag verrà registrato e potrai posizionarlo lontano dal letto (es. in bagno o in cucina). Per spegnere la sveglia, dovrai alzarti e toccare il tag.
+### 📱 Sblocco Fisico con Tag NFC (Singolo e Multi-Tag PRO)
+- Vai nella scheda **Impostazioni** dell'app e tocca **"Registra Tag NFC"**.
+- Avvicina qualsiasi tag NFC standard (NTAG213, NTAG215, NTAG216, Mifare, tessere dei trasporti o badge aziendali) al retro dello smartphone. Sentirai una vibrazione di conferma e il tag verrà salvato con il nome da te scelto (es. *"Tag Bagno"*).
+- **Multi-Tag Fisici (TapOut PRO):** Nel piano PRO puoi registrare più tag contemporaneamente (es. uno in bagno, uno in cucina e il badge nel portafoglio) e spegnere la sveglia o sbloccare le app con uno qualsiasi di essi!
+- **Consiglio per Schermata di Blocco su Android:** Alcuni produttori (come OnePlus, Samsung, Xiaomi) hanno un'impostazione di sicurezza chiamata *"Richiedi sblocco del dispositivo per NFC"*. Assicurati che nelle *Impostazioni di Sistema -> Connessioni -> NFC* questa voce sia disattivata, in modo che l'antenna NFC possa leggere il tag istantaneamente anche sopra la lockscreen.
 - **Non hai ancora un tag fisico?** Nessun problema: attiva il toggle **"Modalità Test Senza Tag"** nelle Impostazioni per simulare il tap direttamente sullo schermo!
 
 ### 🛑 App Blocker (Concentrazione & Detox Digitale)

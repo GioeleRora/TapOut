@@ -9,9 +9,15 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.tapout.TapOutApplication
+import com.tapout.data.local.entity.NfcTagEntity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import java.io.IOException
 
 val Context.tapoutDataStore: DataStore<Preferences> by preferencesDataStore(name = "tapout_settings")
@@ -27,21 +33,37 @@ class SettingsRepository(private val context: Context) {
         val IMMEDIATE_BLOCK_UNTIL_TIMESTAMP = longPreferencesKey("immediate_block_until_timestamp")
     }
 
-    val registeredNfcUid: Flow<String?> = context.tapoutDataStore.data
-        .catch { exception ->
-            if (exception is IOException) emit(emptyPreferences()) else throw exception
-        }
-        .map { preferences ->
-            preferences[PreferencesKeys.REGISTERED_NFC_UID]
-        }
+    private val scope = CoroutineScope(Dispatchers.IO)
 
-    val nfcTagName: Flow<String> = context.tapoutDataStore.data
-        .catch { exception ->
-            if (exception is IOException) emit(emptyPreferences()) else throw exception
+    init {
+        // Migrazione trasparente di eventuali tag esistenti nel DataStore verso Room
+        scope.launch {
+            try {
+                val db = TapOutApplication.database
+                val count = db.nfcTagDao().getTagCount()
+                if (count == 0) {
+                    val prefs = context.tapoutDataStore.data.first()
+                    val oldUid = prefs[PreferencesKeys.REGISTERED_NFC_UID]
+                    val oldName = prefs[PreferencesKeys.NFC_TAG_NAME] ?: "Tag Sveglia Principale"
+                    if (!oldUid.isNullOrBlank()) {
+                        db.nfcTagDao().insertTag(
+                            NfcTagEntity(uid = oldUid, name = oldName)
+                        )
+                    }
+                }
+            } catch (_: Exception) {}
         }
-        .map { preferences ->
-            preferences[PreferencesKeys.NFC_TAG_NAME] ?: "Tag Sveglia Principale"
-        }
+    }
+
+    val allNfcTags: Flow<List<NfcTagEntity>> = TapOutApplication.database.nfcTagDao().getAllTags()
+
+    val registeredNfcUid: Flow<String?> = allNfcTags.map { tags ->
+        tags.firstOrNull()?.uid
+    }
+
+    val nfcTagName: Flow<String> = allNfcTags.map { tags ->
+        tags.firstOrNull()?.name ?: "Tag Sveglia Principale"
+    }
 
     val isTestMode: Flow<Boolean> = context.tapoutDataStore.data
         .catch { exception ->
@@ -76,16 +98,55 @@ class SettingsRepository(private val context: Context) {
         }
 
     suspend fun saveNfcTag(uid: String, name: String) {
+        val existing = TapOutApplication.database.nfcTagDao().getTagByUid(uid)
+        if (existing != null) {
+            TapOutApplication.database.nfcTagDao().insertTag(
+                existing.copy(name = name)
+            )
+        } else {
+            TapOutApplication.database.nfcTagDao().insertTag(
+                NfcTagEntity(uid = uid, name = name)
+            )
+        }
+        // Aggiorna anche DataStore per retrocompatibilità
         context.tapoutDataStore.edit { preferences ->
             preferences[PreferencesKeys.REGISTERED_NFC_UID] = uid
             preferences[PreferencesKeys.NFC_TAG_NAME] = name
         }
     }
 
-    suspend fun clearNfcTag() {
+    suspend fun deleteNfcTag(tagId: Long) {
+        TapOutApplication.database.nfcTagDao().deleteTagById(tagId)
+        val remaining = TapOutApplication.database.nfcTagDao().getAllTagsList()
+        context.tapoutDataStore.edit { preferences ->
+            if (remaining.isNotEmpty()) {
+                preferences[PreferencesKeys.REGISTERED_NFC_UID] = remaining.first().uid
+                preferences[PreferencesKeys.NFC_TAG_NAME] = remaining.first().name
+            } else {
+                preferences.remove(PreferencesKeys.REGISTERED_NFC_UID)
+                preferences.remove(PreferencesKeys.NFC_TAG_NAME)
+            }
+        }
+    }
+
+    suspend fun clearAllNfcTags() {
+        val all = TapOutApplication.database.nfcTagDao().getAllTagsList()
+        for (tag in all) {
+            TapOutApplication.database.nfcTagDao().deleteTag(tag)
+        }
         context.tapoutDataStore.edit { preferences ->
             preferences.remove(PreferencesKeys.REGISTERED_NFC_UID)
             preferences.remove(PreferencesKeys.NFC_TAG_NAME)
+        }
+    }
+
+    suspend fun getAllRegisteredUids(): List<String> {
+        val tags = TapOutApplication.database.nfcTagDao().getAllTagsList()
+        return if (tags.isNotEmpty()) {
+            tags.map { it.uid }
+        } else {
+            val legacy = context.tapoutDataStore.data.first()[PreferencesKeys.REGISTERED_NFC_UID]
+            if (!legacy.isNullOrBlank()) listOf(legacy) else emptyList()
         }
     }
 
